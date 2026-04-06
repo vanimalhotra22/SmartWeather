@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Input Data — Agroweather</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/js/translator.js" defer></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="logo">Agroweather</div>
+    <div class="nav-links">
+      <a href="index.html" data-translate-key="home">Home</a>
+      <a href="input.html" data-translate-key="enter_data">Enter Data</a>
+      <a href="result.html" data-translate-key="results">Results</a>
+      <a href="disease.html" data-translate-key="disease_detect">Disease Detect</a>
+      <a href="chatbot.html" data-translate-key="assistant">Assistant</a>
+      <select id="language-selector" class="language-selector">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी (Hindi)</option>
+      </select>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1>Enter Your Farm's Data</h1>
+    <form id="input-form" class="farm-data-form">
+      
+      <fieldset class="form-group">
+        <legend>🌿 Climatic Conditions</legend>
+        <div class="form-grid">
+          <input type="number" step="0.01" id="temperature_c" placeholder="Avg. Temperature (°C)" required>
+          <input type="number" step="0.01" id="rainfall_mm" placeholder="Total Rainfall (mm)" required>
+          <input type="number" step="0.01" id="humidity_percent" placeholder="Avg. Humidity (%)" required>
+          <input type="number" step="0.01" id="sunlight_hours" placeholder="Avg. Daily Sunlight (Hours)" required>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-group">
+        <legend>💧 Soil & Water Management</legend>
+        <div class="form-grid">
+          <input type="number" step="0.01" id="soil_ph" placeholder="Soil pH (e.g., 5.5 - 7.5)" required>
+          <input type="number" step="0.01" id="soil_moisture_percent" placeholder="Avg. Soil Moisture (%)" required>
+          <select id="irrigation_type" required>
+            <option value="" disabled selected>Select Irrigation Type</option>
+            <option value="None">None / Rainfall</option>
+            <option value="Drip">Drip</option>
+            <option value="Sprinkler">Sprinkler</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset class="form-group">
+        <legend>🌱 Crop Management</legend>
+        <div class="form-grid">
+          <select id="fertilizer_type" required>
+            <option value="" disabled selected>Select Fertilizer Type</option>
+            <option value="Organic">Organic</option>
+            <option value="Inorganic">Inorganic</option>
+            <option value="Mixed">Mixed</option>
+          </select>
+          <input type="number" step="0.01" id="pesticide_usage_ml" placeholder="Pesticide Usage (ml/hectare)" required>
+          <input type="number" id="total_days" placeholder="Crop Duration (Total Days)" required>
+        </div>
+      </fieldset>
+
+      <button type="submit" class="btn">Get Recommendation</button>
+    </form>
+  </main>
+
+  <script>
+    const BACKEND = "http://127.0.0.1:8000";
+
+    document.getElementById('input-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = {
+        temperature_c: parseFloat(document.getElementById('temperature_c').value),
+        soil_ph: parseFloat(document.getElementById('soil_ph').value),
+        soil_moisture_percent: parseFloat(document.getElementById('soil_moisture_percent').value),
+        rainfall_mm: parseFloat(document.getElementById('rainfall_mm').value),
+        humidity_percent: parseFloat(document.getElementById('humidity_percent').value),
+        sunlight_hours: parseFloat(document.getElementById('sunlight_hours').value),
+        irrigation_type: document.getElementById('irrigation_type').value,
+        fertilizer_type: document.getElementById('fertilizer_type').value,
+        pesticide_usage_ml: parseFloat(document.getElementById('pesticide_usage_ml').value),
+        total_days: parseInt(document.getElementById('total_days').value)
+      };
+
+      try {
+        const button = e.target.querySelector('button[type="submit"]');
+        button.textContent = 'Analyzing...';
+        button.disabled = true;
+
+        const res = await fetch(BACKEND + '/api/recommend_crop', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(formData)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          const resultToSave = { ...data, inputs: formData };
+          const history = JSON.parse(localStorage.getItem('predictionHistory')) || [];
+          history.unshift(resultToSave);
+          const limitedHistory = history.slice(0, 5);
+          localStorage.setItem('predictionHistory', JSON.stringify(limitedHistory));
+          window.location.href = 'result.html';
+        } else {
+          alert(data.detail || 'Prediction failed.');
+          button.textContent = 'Get Recommendation';
+          button.disabled = false;
+        }
+      } catch (error) {
+        alert('Could not connect to the server.');
+        const button = e.target.querySelector('button[type="submit"]');
+        button.textContent = 'Get Recommendation';
+        button.disabled = false;
+      }
+    });
+  </script>
+  <footer>
+    <p>© 2025 Agroweather. All rights reserved.</p>
+  </footer>
+</body>
+</html>
