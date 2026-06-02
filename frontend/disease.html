@@ -6,6 +6,7 @@
   <title>Disease Detection — AgroWeather</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/js/translator.js" defer></script>
+  <script src="assets/js/auth.js" defer></script>
 </head>
 <body>
   <nav class="navbar">
@@ -24,13 +25,13 @@
   </nav>
 
   <div class="container">
-    <h1>Disease Detection</h1>
+    <h1 data-translate-key="disease_title">Disease Detection</h1>
     <form id="disease-form" class="upload-box">
-      <p>📷 Upload a crop leaf image for disease detection</p>
+      <p data-translate-key="upload_prompt">📷 Upload a crop leaf image for disease detection</p>
       <input type="file" id="image-input" accept="image/*" class="file-input">
-      <label for="image-input" class="btn btn-secondary">Choose File</label>
-      <span id="file-name">No file chosen</span>
-      <button type="submit" class="btn">Analyze Image</button>
+      <label for="image-input" class="btn btn-secondary" data-translate-key="choose_file">Choose File</label>
+      <span id="file-name" data-translate-key="no_file">No file chosen</span>
+      <button type="submit" class="btn" data-translate-key="analyze_image">Analyze Image</button>
     </form>
     
     <div id="disease-result-container" style="display:none;">
@@ -48,39 +49,6 @@
       fileNameSpan.textContent = imageInput.files.length > 0 ? imageInput.files[0].name : "No file chosen";
     });
 
-    async function getDiseaseInfo(diseaseName) {
-      const selectedLang = localStorage.getItem('selectedLanguage') || 'en';
-      if (diseaseName.toLowerCase() === 'healthy') {
-        return {
-          description: "The leaf appears to be healthy. No signs of common diseases were detected.",
-          prevention: "To maintain plant health, ensure proper watering, adequate sunlight, and nutrient-rich soil."
-        };
-      }
-      
-      const res = await fetch(BACKEND + "/api/chat", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ 
-            message: `In 50 words, what is ${diseaseName} disease in plants and what is one prevention tip? Structure the response as: "Description:... Prevention:..."`,
-            language: selectedLang 
-        })
-      });
-
-      if (!res.ok) {
-        return { description: "Could not fetch details.", prevention: "Please check the Assistant for more information." };
-      }
-      const data = await res.json();
-      const reply = data.reply || "";
-      
-      const descriptionMatch = reply.match(/Description:(.*?)(Prevention:|$)/s);
-      const preventionMatch = reply.match(/Prevention:(.*)/s);
-
-      return {
-        description: descriptionMatch ? descriptionMatch[1].trim() : "Details not available.",
-        prevention: preventionMatch ? preventionMatch[1].trim() : "Check trusted agricultural sources for prevention tips."
-      };
-    }
-
     diseaseForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const file = imageInput.files[0];
@@ -90,13 +58,21 @@
       }
       
       resultContainer.style.display = "block";
-      resultContainer.innerHTML = `<div class="result-card"><p class="loading-text">Analyzing image, please wait...</p></div>`;
+      resultContainer.innerHTML = `<div class="result-card"><p class="loading-text" data-translate-key="analyzing">Analyzing image, please wait...</p></div>`;
+      if (window.applyTranslations) window.applyTranslations(localStorage.getItem('selectedLanguage') || 'en');
 
       const formData = new FormData();
       formData.append("file", file);
 
       try {
-        const res = await fetch(BACKEND + "/api/detect_disease", {
+        const selectedLang = localStorage.getItem('selectedLanguage') || 'en';
+        const user = window.auth.getUser();
+        let url = `${BACKEND}/api/detect_disease?language=${selectedLang}`;
+        if (user) {
+          url += `&google_id=${user.google_id}`;
+        }
+
+        const res = await fetch(url, {
           method: "POST",
           body: formData
         });
@@ -105,27 +81,28 @@
         
         const data = await res.json();
         const diseaseName = data.prediction || "Unknown";
-
-        const diseaseInfo = await getDiseaseInfo(diseaseName);
+        const description = data.description || "Details not available.";
+        const prevention = data.prevention || "Check trusted agricultural sources for prevention tips.";
 
         resultContainer.innerHTML = `
           <div class="result-card">
             <div class="details-grid-disease">
               <div class="detail-item-disease main-prediction">
-                <span class="detail-label">🔍 Analysis Result</span>
+                <span class="detail-label" data-translate-key="analysis_result">🔍 Analysis Result</span>
                 <h2 class="disease-name ${diseaseName.toLowerCase() === 'healthy' ? 'healthy' : 'disease'}">${diseaseName}</h2>
               </div>
               <div class="detail-item-disease">
-                <span class="detail-label">ℹ️ Description</span>
-                <p>${diseaseInfo.description}</p>
+                <span class="detail-label" data-translate-key="description_label">ℹ️ Description</span>
+                <p>${description}</p>
               </div>
               <div class="detail-item-disease">
-                <span class="detail-label">🛡️ Suggested Action</span>
-                <p>${diseaseInfo.prevention}</p>
+                <span class="detail-label" data-translate-key="action_label">🛡️ Suggested Action</span>
+                <p>${prevention}</p>
               </div>
             </div>
           </div>
         `;
+        if (window.applyTranslations) window.applyTranslations(localStorage.getItem('selectedLanguage') || 'en');
       } catch (error) {
         resultContainer.innerHTML = `<div class="result-card empty-state"><p>Error: Could not analyze the image. Please try again.</p></div>`;
       }

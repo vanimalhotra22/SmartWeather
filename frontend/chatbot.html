@@ -6,6 +6,7 @@
   <title>Smart Assistant —Agroweather</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/js/translator.js" defer></script>
+  <script src="assets/js/auth.js" defer></script>
 </head>
 <body>
   <nav class="navbar">
@@ -24,19 +25,19 @@
   </nav>
 
   <div class="container">
-    <h1>Agroweather Assistant</h1>
+    <h1 data-translate-key="chatbot_title">Agroweather Assistant</h1>
     <div class="chatbox" id="chatbox">
       </div>
     
     <div class="suggestion-chips" id="suggestion-chips">
-        <div class="chip">Recommend a crop</div>
-        <div class="chip">What is drip irrigation?</div>
-        <div class="chip">How to prevent rust disease?</div>
+        <div class="chip" data-translate-key="chip_recommend">Recommend a crop</div>
+        <div class="chip" data-translate-key="chip_irrigation">What is drip irrigation?</div>
+        <div class="chip" data-translate-key="chip_disease">How to prevent rust disease?</div>
     </div>
     
     <form id="chat-form" class="chat-input">
-      <input type="text" id="message-input" placeholder="Type your question..." required autocomplete="off">
-      <button type="submit" class="btn">Send</button>
+      <input type="text" id="message-input" placeholder="Type your question..." data-translate-key="chatbot_placeholder" required autocomplete="off">
+      <button type="submit" class="btn" data-translate-key="chatbot_send">Send</button>
     </form>
   </div>
 
@@ -47,10 +48,13 @@
     const messageInput = document.getElementById("message-input");
     const suggestionChipsContainer = document.getElementById("suggestion-chips");
 
-    function addMessage(text, sender) {
+    function addMessage(text, sender, translationKey = null) {
       const msg = document.createElement("div");
       msg.className = `chat ${sender}`;
       msg.textContent = text;
+      if (translationKey) {
+        msg.setAttribute('data-translate-key', translationKey);
+      }
       chatbox.appendChild(msg);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
@@ -82,10 +86,15 @@
 
       try {
         const selectedLang = localStorage.getItem('selectedLanguage') || 'en';
+        const user = window.auth.getUser();
         const res = await fetch(BACKEND + "/api/chat", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ message: message, language: selectedLang })
+          body: JSON.stringify({
+            message: message,
+            language: selectedLang,
+            google_id: user ? user.google_id : null
+          })
         });
 
         removeLoadingIndicator();
@@ -118,7 +127,8 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => {
-        addMessage("Hello! I'm the SmartAgro Assistant. How can I help you with your farming questions today?", "bot");
+        const welcomeText = (window.getTranslation && window.getTranslation('assistant_welcome')) || "Hello! I'm the SmartAgro Assistant. How can I help you with your farming questions today?";
+        addMessage(welcomeText, "bot", "assistant_welcome");
       }, 500);
 
       const prefilledQuery = localStorage.getItem('chatbotQuery');

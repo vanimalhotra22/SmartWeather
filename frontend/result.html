@@ -6,6 +6,7 @@
   <title>Results —Agroweather</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/js/translator.js" defer></script>
+  <script src="assets/js/auth.js" defer></script>
 </head>
 <body>
   <nav class="navbar">
@@ -24,94 +25,138 @@
   </nav>
 
   <main class="container">
-    <h1>Recommendation Results</h1>
+    <h1 data-translate-key="recommendation_results">Recommendation Results</h1>
 
     <div id="main-action-container" class="main-action">
-      <a href="input.html" class="btn">Get a New Recommendation</a>
+      <a href="input.html" class="btn" data-translate-key="get_new_recommendation">Get a New Recommendation</a>
+      <button class="btn btn-secondary" onclick="window.print()" style="margin-left: 10px;" data-translate-key="export_pdf">🖨️ Export PDF / Print</button>
     </div>
 
     <div id="results-container">
-      </div>
+    </div>
   </main>
 
   <script>
+    const BACKEND = "http://127.0.0.1:8000";
     const mainActionContainer = document.getElementById('main-action-container');
     const resultsContainer = document.getElementById('results-container');
-    const history = JSON.parse(localStorage.getItem('predictionHistory'));
 
-    if (history && history.length > 0) {
-      mainActionContainer.style.display = 'block';
+    document.addEventListener("DOMContentLoaded", async () => {
+      let history = JSON.parse(localStorage.getItem('predictionHistory'));
+      const user = window.auth.getUser();
 
-      history.forEach((result, i) => {
-        const confidencePercentage = result.confidence ? (result.confidence * 100).toFixed(1) + "%" : "N/A";
-        const cardWrapper = document.createElement('div');
-        cardWrapper.classList.add('result-card-wrapper'); 
+      if (user && (!history || history.length === 0)) {
+        try {
+          const res = await fetch(`${BACKEND}/api/history/crop?google_id=${user.google_id}`);
+          if (res.ok) {
+            const dbHistory = await res.json();
+            if (dbHistory.length > 0) {
+              history = dbHistory.map(item => ({
+                recommended_crop: item.recommended_crop,
+                confidence: item.confidence,
+                predicted_yield_kg_per_hectare: item.predicted_yield,
+                sowing_date: item.sowing_date,
+                harvest_date: item.harvest_date,
+                inputs: {
+                  temperature_c: item.temperature,
+                  rainfall_mm: item.rainfall,
+                  sunlight_hours: item.sunlight,
+                  humidity_percent: item.humidity,
+                  soil_ph: item.ph,
+                  soil_moisture_percent: item.moisture
+                }
+              }));
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load history from database:", e);
+        }
+      }
 
-        const latestClass = (i === 0) ? 'latest-result' : '';
+      renderResults(history);
+    });
 
-        cardWrapper.innerHTML = `
-          <div class="result-card ${latestClass}">
-            <div class="result-header">
-              <span class="result-label">Recommended Crop (Click name for info)</span>
-              <a href="chatbot.html" class="crop-link" data-crop="${result.recommended_crop}">
-                <h2 class="result-crop-name">🌾 ${result.recommended_crop}</h2>
-              </a>
-            </div>
-            
-            <div class="conditions-card">
-                <h4 class="conditions-title">Based on these conditions:</h4>
-                <div class="conditions-grid">
-                    <div class="condition-item">🌡️ Temp: <span>${result.inputs.temperature_c}°C</span></div>
-                    <div class="condition-item">💧 Rainfall: <span>${result.inputs.rainfall_mm} mm</span></div>
-                    <div class="condition-item">☀️ Sunlight: <span>${result.inputs.sunlight_hours} hrs</span></div>
-                    <div class="condition-item">💦 Humidity: <span>${result.inputs.humidity_percent}%</span></div>
-                    <div class="condition-item">🌱 Soil pH: <span>${result.inputs.soil_ph}</span></div>
-                    <div class="condition-item">💧 Soil Moisture: <span>${result.inputs.soil_moisture_percent}%</span></div>
+    function renderResults(history) {
+      if (history && history.length > 0) {
+        mainActionContainer.style.display = 'block';
+        resultsContainer.innerHTML = '';
+
+        history.forEach((result, i) => {
+          const confidencePercentage = result.confidence ? (result.confidence * 100).toFixed(1) + "%" : "N/A";
+          const cardWrapper = document.createElement('div');
+          cardWrapper.classList.add('result-card-wrapper'); 
+
+          const latestClass = (i === 0) ? 'latest-result' : '';
+          const latestBadge = (i === 0) ? `<div class="latest-result-badge" data-translate-key="latest_result_badge">Latest Result</div>` : '';
+
+          cardWrapper.innerHTML = `
+            <div class="result-card ${latestClass}">
+              ${latestBadge}
+              <div class="result-header">
+                <span class="result-label" data-translate-key="rec_crop_label">Recommended Crop (Click name for info)</span>
+                <a href="chatbot.html" class="crop-link" data-crop="${result.recommended_crop}">
+                  <h2 class="result-crop-name">🌾 <span data-translate-key="${result.recommended_crop.toLowerCase()}">${result.recommended_crop}</span></h2>
+                </a>
+              </div>
+              
+              <div class="conditions-card">
+                  <h4 class="conditions-title" data-translate-key="based_on_conditions">Based on these conditions:</h4>
+                  <div class="conditions-grid">
+                      <div class="condition-item">🌡️ Temp: <span>${result.inputs.temperature_c}°C</span></div>
+                      <div class="condition-item">💧 Rainfall: <span>${result.inputs.rainfall_mm} mm</span></div>
+                      <div class="condition-item">☀️ Sunlight: <span>${result.inputs.sunlight_hours} hrs</span></div>
+                      <div class="condition-item">💦 Humidity: <span>${result.inputs.humidity_percent}%</span></div>
+                      <div class="condition-item">🌱 Soil pH: <span>${result.inputs.soil_ph}</span></div>
+                      <div class="condition-item">💧 Soil Moisture: <span>${result.inputs.soil_moisture_percent}%</span></div>
+                  </div>
+              </div>
+
+              <div class="details-grid">
+                <div class="detail-item">
+                  <span class="detail-label" data-translate-key="confidence_label">📊 Confidence Score</span>
+                  <p class="confidence-badge">${confidencePercentage}</p>
                 </div>
+                <div class="detail-item">
+                  <span class="detail-label" data-translate-key="yield_label">📈 Predicted Yield</span>
+                  <p>${result.predicted_yield_kg_per_hectare || (window.getTranslation ? window.getTranslation('na') : 'N/A')} <span data-translate-key="kg_per_hectare">kg/hectare</span></p>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label" data-translate-key="sowing_label">📅 Estimated Sowing Date</span>
+                  <p>${result.sowing_date || (window.getTranslation ? window.getTranslation('not_provided') : "Not Provided")}</p>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label" data-translate-key="harvest_label">📅 Estimated Harvest Date</span>
+                  <p>${result.harvest_date || (window.getTranslation ? window.getTranslation('not_provided') : "Not Provided")}</p>
+                </div>
+              </div>
             </div>
+          `;
+          resultsContainer.appendChild(cardWrapper);
+        });
 
-            <div class="details-grid">
-              <div class="detail-item">
-                <span class="detail-label">📊 Confidence Score</span>
-                <p class="confidence-badge">${confidencePercentage}</p>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">📈 Predicted Yield</span>
-                <p>${result.predicted_yield_kg_per_hectare || 'N/A'} kg/hectare</p>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">📅 Estimated Sowing Date</span>
-                <p>${result.sowing_date || "Not Provided"}</p>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">📅 Estimated Harvest Date</span>
-                <p>${result.harvest_date || "Not Provided"}</p>
-              </div>
-            </div>
+        if (window.applyTranslations) window.applyTranslations(localStorage.getItem('selectedLanguage') || 'en');
+
+        resultsContainer.addEventListener('click', (e) => {
+          const link = e.target.closest('.crop-link');
+          if (link) {
+            e.preventDefault(); 
+            const cropName = link.dataset.crop;
+            localStorage.setItem('chatbotQuery', `Give me a basic guide to growing ${cropName}.`);
+            window.location.href = link.href;
+          }
+        });
+
+      } else {
+        mainActionContainer.style.display = 'none';
+        resultsContainer.innerHTML = `
+          <div class="result-card empty-state">
+            <h3 data-translate-key="no_results_title">No Results Found</h3>
+            <p data-translate-key="no_results_desc">You haven't made a prediction yet. Please enter your farm data to get a recommendation.</p>
+            <a href="input.html" class="btn" data-translate-key="enter_data">Enter Farm Data</a>
           </div>
         `;
-        resultsContainer.appendChild(cardWrapper);
-      });
-
-      resultsContainer.addEventListener('click', (e) => {
-        const link = e.target.closest('.crop-link');
-        if (link) {
-          e.preventDefault(); 
-          const cropName = link.dataset.crop;
-          localStorage.setItem('chatbotQuery', `Give me a basic guide to growing ${cropName}.`);
-          window.location.href = link.href;
-        }
-      });
-
-    } else {
-      mainActionContainer.style.display = 'none';
-      resultsContainer.innerHTML = `
-        <div class="result-card empty-state">
-          <h3>No Results Found</h3>
-          <p>You haven't made a prediction yet. Please enter your farm data to get a recommendation.</p>
-          <a href="input.html" class="btn">Enter Farm Data</a>
-        </div>
-      `;
+        if (window.applyTranslations) window.applyTranslations(localStorage.getItem('selectedLanguage') || 'en');
+      }
     }
   </script>
   <footer>

@@ -6,6 +6,7 @@
   <title>Agroweather — Home</title>
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/js/translator.js" defer></script>
+  <script src="assets/js/auth.js" defer></script>
 </head>
 <body>
   <nav class="navbar">
@@ -70,6 +71,23 @@
     </div>
   </section>
 
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check if user is logged in
+      const user = localStorage.getItem('user_profile');
+      if (user) {
+        const heroContent = document.querySelector('.hero-content');
+        if (heroContent) {
+          const dashboardBtn = document.createElement('a');
+          dashboardBtn.href = 'dashboard.html';
+          dashboardBtn.className = 'btn hero-btn btn-secondary';
+          dashboardBtn.style.marginLeft = '15px';
+          dashboardBtn.textContent = '📊 View Dashboard';
+          heroContent.appendChild(dashboardBtn);
+        }
+      }
+    });
+  </script>
   <footer>
     <p>© 2025 Agroweather. All rights reserved.</p>
   </footer>
