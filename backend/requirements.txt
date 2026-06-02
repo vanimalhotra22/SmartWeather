@@ -8,3 +8,4 @@ google-generativeai
 requests
 Pillow
 numpy
+python-multipart
