@@ -1,5 +1,8 @@
 const GOOGLE_CLIENT_ID = "822402579088-cr2ea0olrf87stpqe9r7dg6qonqsja6r.apps.googleusercontent.com";
-const BACKEND_URL = "http://127.0.0.1:8000";
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? "http://127.0.0.1:8000" 
+    : "https://smartweather-xyja.onrender.com";
+window.BACKEND_URL = BACKEND_URL;
 
 // Ensure auth functions are globally accessible
 window.auth = {
